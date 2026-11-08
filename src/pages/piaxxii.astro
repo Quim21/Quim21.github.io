@@ -1,0 +1,420 @@
+---
+import '../styles/global.css';
+
+const title = 'La nau PiaXXII · Jugar';
+const description =
+  'Aventura conversacional de texto en Python que se juega directamente en el navegador gracias a Pyodide.';
+const pyodideVersion = '314.0.7';
+const pyodideUrl = `https://cdn.jsdelivr.net/pyodide/v${pyodideVersion}/full/`;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script is:inline src={`${pyodideUrl}pyodide.js`} defer></script>
+  </head>
+
+  <body>
+    <div class="page wrap">
+      <header class="top">
+        <a href="/#proyectos" class="back">← Portafolio</a>
+        <div class="heading">
+          <h1>La nau PiaXXII</h1>
+          <p>
+            Aventura de texto en Python, ejecutándose en tu navegador con Pyodide. El juego está en catalán.{' '}
+            <a href="https://github.com/Quim21/projecte-Historia-Conversacional" target="_blank" rel="noopener">Código ↗</a>
+          </p>
+        </div>
+      </header>
+
+      <section class="terminal" aria-label="Terminal del juego">
+        <div class="bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="bar-title">python src/main.py</span>
+          <button type="button" id="restart" class="bar-btn" disabled>↻ Nueva partida</button>
+        </div>
+
+        <pre id="screen" aria-live="polite" tabindex="0"><span class="dim">Cargando Python en el navegador…
+La primera vez descarga unos 12 MB; después queda en caché.</span></pre>
+
+        <form id="prompt" class="prompt" autocomplete="off">
+          <span class="caret" aria-hidden="true">›</span>
+          <label for="command" class="sr-only">Tu respuesta</label>
+          <input
+            id="command"
+            name="command"
+            type="text"
+            placeholder="Cargando…"
+            disabled
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            enterkeyhint="send"
+          />
+          <button type="submit" id="send" disabled>Enviar</button>
+        </form>
+      </section>
+
+      <div class="quick" id="quick" aria-label="Órdenes rápidas">
+        <span>Atajos:</span>
+        <button type="button" data-cmd="ajuda" disabled>ajuda</button>
+        <button type="button" data-cmd="mapa" disabled>mapa</button>
+        <button type="button" data-cmd="inventari" disabled>inventari</button>
+        <button type="button" data-cmd="parlar" disabled>parlar</button>
+      </div>
+
+      <details class="help">
+        <summary>¿Cómo se juega?</summary>
+        <p>
+          Eres el capitán Bond. Un aerolito ha dañado los propulsores de la nave: tienes que repararlos y volver a la
+          sala de mando antes de que el Malien te atrape. Escribe órdenes como <code>anar banys</code>,
+          <code>agafar llanterna</code>, <code>encendre llanterna</code> o <code>usar eina propulsors</code>.
+          Con <code>ajuda</code> ves todas las órdenes y con <code>mapa</code>, el plano de la nave.
+        </p>
+      </details>
+    </div>
+
+    <script define:vars={{ pyodideUrl }} is:inline>
+      window.PYODIDE_URL = pyodideUrl;
+    </script>
+
+    <script>
+      type Runner = {
+        ejecutar: (entrada?: string | null) => { toJs: () => [string, boolean]; destroy: () => void };
+        nueva_partida: () => void;
+      };
+
+      const screen = document.getElementById('screen') as HTMLPreElement;
+      const form = document.getElementById('prompt') as HTMLFormElement;
+      const input = document.getElementById('command') as HTMLInputElement;
+      const send = document.getElementById('send') as HTMLButtonElement;
+      const restart = document.getElementById('restart') as HTMLButtonElement;
+      const quick = [...document.querySelectorAll<HTMLButtonElement>('#quick button')];
+
+      let runner: Runner | null = null;
+      let finished = false;
+      const sent: string[] = [];
+      let recall = 0;
+
+      function setEnabled(enabled: boolean) {
+        input.disabled = send.disabled = !enabled;
+        quick.forEach((b) => (b.disabled = !enabled));
+        input.placeholder = enabled ? 'Escribe aquí y pulsa Enter' : finished ? 'Partida terminada' : 'Cargando…';
+      }
+
+      function show(text: string, note?: string) {
+        screen.textContent = text;
+        if (note) {
+          const span = document.createElement('span');
+          span.className = 'dim';
+          span.textContent = note;
+          screen.append(span);
+        }
+        screen.scrollTop = screen.scrollHeight;
+      }
+
+      function run(entry: string | null) {
+        if (!runner) return;
+        const result = entry === null ? runner.ejecutar() : runner.ejecutar(entry);
+        const [text, done] = result.toJs();
+        result.destroy();
+        finished = done;
+        show(text, done ? '\n\n— Partida terminada. Pulsa «Nueva partida» para volver a jugar. —' : undefined);
+        setEnabled(!done);
+        restart.disabled = false;
+        if (!done) input.focus({ preventScroll: true });
+      }
+
+      async function boot() {
+        try {
+          // pyodide.js se carga con defer: esperamos a que esté disponible
+          while (!(window as any).loadPyodide) await new Promise((r) => setTimeout(r, 50));
+          const pyodide = await (window as any).loadPyodide({ indexURL: (window as any).PYODIDE_URL });
+
+          const base = new URL('/piaxxii/', location.origin);
+          const files: string[] = await fetch(new URL('game/manifest.json', base)).then((r) => r.json());
+          await Promise.all(
+            files.map(async (file) => {
+              const code = await fetch(new URL(`game/${file}`, base)).then((r) => r.text());
+              const path = `/game/${file}`;
+              pyodide.FS.mkdirTree(path.slice(0, path.lastIndexOf('/')));
+              pyodide.FS.writeFile(path, code);
+            })
+          );
+
+          const runnerCode = await fetch(new URL('runner.py', base)).then((r) => r.text());
+          pyodide.runPython(runnerCode);
+          runner = {
+            ejecutar: pyodide.globals.get('ejecutar'),
+            nueva_partida: pyodide.globals.get('nueva_partida'),
+          };
+          run(null);
+        } catch (error) {
+          console.error(error);
+          show('', 'No se ha podido cargar el juego. Prueba a recargar la página o usa un navegador actualizado.');
+        }
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (!runner || finished) return;
+        const value = input.value;
+        if (value.trim()) sent.push(value);
+        recall = sent.length;
+        input.value = '';
+        run(value);
+      });
+
+      // Flechas arriba/abajo: recuperar órdenes anteriores, como en una terminal
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowUp' && recall > 0) {
+          recall--;
+          input.value = sent[recall];
+          event.preventDefault();
+        } else if (event.key === 'ArrowDown' && recall < sent.length) {
+          recall++;
+          input.value = sent[recall] ?? '';
+          event.preventDefault();
+        }
+      });
+
+      quick.forEach((button) =>
+        button.addEventListener('click', () => {
+          if (!runner || finished) return;
+          run(button.dataset.cmd!);
+        })
+      );
+
+      restart.addEventListener('click', () => {
+        if (!runner) return;
+        runner.nueva_partida();
+        sent.length = 0;
+        recall = 0;
+        run(null);
+      });
+
+      // Al pulsar en la pantalla, el cursor vuelve a la línea de órdenes
+      screen.addEventListener('click', () => {
+        if (!window.getSelection()?.toString() && !input.disabled) input.focus();
+      });
+
+      boot();
+    </script>
+  </body>
+</html>
+
+<style>
+  .page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 24px 0 32px;
+  }
+  .back {
+    font-size: 14px;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .back:hover {
+    color: var(--accent);
+  }
+  .heading h1 {
+    font-size: clamp(1.8rem, 5vw, 2.4rem);
+    letter-spacing: -0.02em;
+    margin: 6px 0 4px;
+  }
+  .heading p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 15px;
+  }
+  .heading a {
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .terminal {
+    --t-bg: #0b0a10;
+    --t-text: #d6f5d6;
+    --t-dim: #7d8a7d;
+    --t-accent: #7ee787;
+    display: flex;
+    flex-direction: column;
+    height: clamp(420px, 68dvh, 760px);
+    background: var(--t-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #3a3648;
+  }
+  .bar-title {
+    margin-left: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--t-dim);
+  }
+  .bar-btn {
+    margin-left: auto;
+    font: 500 12px var(--mono);
+    color: var(--t-text);
+    background: transparent;
+    border: 1px solid rgb(255 255 255 / 0.15);
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+  }
+  .bar-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  .bar-btn:not(:disabled):hover {
+    border-color: var(--t-accent);
+  }
+
+  #screen {
+    flex: 1;
+    margin: 0;
+    padding: 16px 18px;
+    overflow: auto;
+    min-height: 0;
+    font: 13px/1.55 var(--mono);
+    color: var(--t-text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #screen :global(.dim) {
+    color: var(--t-dim);
+  }
+
+  .prompt {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px 12px 18px;
+    border-top: 1px solid rgb(255 255 255 / 0.08);
+  }
+  .caret {
+    font: 600 16px var(--mono);
+    color: var(--t-accent);
+  }
+  .prompt input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--t-text);
+    font: 16px var(--mono);
+    caret-color: var(--t-accent);
+  }
+  .prompt input::placeholder {
+    color: var(--t-dim);
+  }
+  .prompt button {
+    font: 600 13px var(--font);
+    color: #0b0a10;
+    background: var(--t-accent);
+    border: none;
+    border-radius: 6px;
+    padding: 7px 14px;
+    cursor: pointer;
+  }
+  .prompt button:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  .quick {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .quick button {
+    font: 13px var(--mono);
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: none;
+    border-radius: 999px;
+    padding: 5px 12px;
+    cursor: pointer;
+  }
+  .quick button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .help {
+    font-size: 15px;
+    color: var(--muted);
+  }
+  .help summary {
+    cursor: pointer;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .help code {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: var(--surface-2);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  .bar-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 600px) {
+    .bar-title {
+      display: none;
+    }
+    /* En pantallas estrechas no partimos las líneas para no deformar el mapa ASCII */
+    #screen {
+      white-space: pre;
+      word-break: normal;
+      font-size: 11px;
+      padding: 12px;
+    }
+    .prompt {
+      padding-left: 12px;
+    }
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+</style>

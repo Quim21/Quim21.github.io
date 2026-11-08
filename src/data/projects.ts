@@ -90,10 +90,12 @@ export const featured: FeaturedProject[] = [
       'Diseño orientado a objetos con herencia para objetos, personajes y órdenes',
       'Intérprete de órdenes con un módulo por comando y un despachador',
       'Errores del jugador gestionados con excepciones propias',
-      'Sin dependencias: se juega con python src/main.py',
+      'Jugable aquí mismo: el código Python original se ejecuta en el navegador con Pyodide',
     ],
     stack: ['Python', 'POO', 'UML'],
     repo: 'https://github.com/Quim21/projecte-Historia-Conversacional',
+    demo: '/piaxxii/',
+    demoLabel: 'Jugar en el navegador',
     credits: 'Con Pol Moyano',
     visual: {
       type: 'terminal',
