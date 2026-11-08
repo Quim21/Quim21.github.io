@@ -86,7 +86,7 @@ const year = new Date().getFullYear();
                     {p.stack.map((s) => <li>{s}</li>)}
                   </ul>
                   <div class="links">
-                    {p.demo && <a href={p.demo} target="_blank" rel="noopener">Demo ↗</a>}
+                    {p.demo && <a class="play" href={p.demo} target="_blank" rel="noopener">▶ {p.demoLabel ?? 'Demo'} ↗</a>}
                     {p.repo ? (
                       <a href={p.repo} target="_blank" rel="noopener">Código ↗</a>
                     ) : (
@@ -395,6 +395,27 @@ const year = new Date().getFullYear();
   }
   .links a:hover {
     color: var(--accent);
+  }
+  .links {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .links a.play {
+    border: none;
+    padding: 6px 14px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+  }
+  .links a.play:hover {
+    color: #fff;
+    filter: brightness(1.1);
+  }
+  @media (prefers-color-scheme: dark) {
+    .links a.play,
+    .links a.play:hover {
+      color: #120c24;
+    }
   }
   .private {
     font-size: 14px;

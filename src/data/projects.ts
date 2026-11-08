@@ -18,6 +18,7 @@ export interface FeaturedProject {
   stack: string[];
   repo?: string; // si no hay repo público, se muestra "Código privado"
   demo?: string;
+  demoLabel?: string; // texto del botón de la demo (por defecto "Demo")
   credits?: string;
   visual: Visual;
 }
@@ -44,6 +45,8 @@ export const featured: FeaturedProject[] = [
       'Game passes, icono y miniaturas de tienda listos para publicar',
     ],
     stack: ['Luau', 'Roblox', 'Rojo', 'DataStore'],
+    demo: 'https://www.roblox.com/games/86556561042617/Gem-Rush-Clicker',
+    demoLabel: 'Jugar en Roblox',
     visual: { type: 'image', src: gemRush, alt: 'Miniatura de Gem Rush Clicker: una gema azul con el texto Click gems, Upgrade, Unlock 5 worlds' },
   },
   {
