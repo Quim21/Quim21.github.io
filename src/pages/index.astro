@@ -86,8 +86,12 @@ const year = new Date().getFullYear();
                     {p.stack.map((s) => <li>{s}</li>)}
                   </ul>
                   <div class="links">
-                    <a href={p.repo} target="_blank" rel="noopener">Código ↗</a>
                     {p.demo && <a href={p.demo} target="_blank" rel="noopener">Demo ↗</a>}
+                    {p.repo ? (
+                      <a href={p.repo} target="_blank" rel="noopener">Código ↗</a>
+                    ) : (
+                      <span class="private">🔒 Código privado · disponible bajo petición</span>
+                    )}
                   </div>
                 </div>
               </article>
@@ -391,6 +395,13 @@ const year = new Date().getFullYear();
   }
   .links a:hover {
     color: var(--accent);
+  }
+  .private {
+    font-size: 14px;
+    color: var(--muted);
+    padding: 5px 12px;
+    border: 1px dashed var(--border);
+    border-radius: 999px;
   }
 
   /* Otros proyectos */

@@ -16,7 +16,7 @@ export interface FeaturedProject {
   summary: string;
   highlights: string[];
   stack: string[];
-  repo: string;
+  repo?: string; // si no hay repo público, se muestra "Código privado"
   demo?: string;
   credits?: string;
   visual: Visual;
@@ -44,7 +44,6 @@ export const featured: FeaturedProject[] = [
       'Game passes, icono y miniaturas de tienda listos para publicar',
     ],
     stack: ['Luau', 'Roblox', 'Rojo', 'DataStore'],
-    repo: 'https://github.com/Quim21/Gem-rush-clicker',
     visual: { type: 'image', src: gemRush, alt: 'Miniatura de Gem Rush Clicker: una gema azul con el texto Click gems, Upgrade, Unlock 5 worlds' },
   },
   {
@@ -59,7 +58,6 @@ export const featured: FeaturedProject[] = [
       'Desarrollo por fases con decisiones, balance y changelog documentados',
     ],
     stack: ['Luau', 'Roblox', 'Rojo', 'DataStore'],
-    repo: 'https://github.com/Quim21/mythical-beast-tycoon',
     visual: {
       type: 'tree',
       title: 'mythical-beast-tycoon/src',
