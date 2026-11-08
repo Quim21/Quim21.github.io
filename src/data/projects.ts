@@ -129,8 +129,9 @@ export const more: Project[] = [
     title: 'RePia',
     kind: 'Aplicación web',
     summary:
-      'Aplicación web con registro e inicio de sesión de usuarios y lista de elementos que se crean, consultan y eliminan en Firestore.',
+      'Aplicación web con registro e inicio de sesión de usuarios. Cada usuario gestiona su propia lista de elementos (crear, editar y eliminar) guardada en Firestore.',
     stack: ['JavaScript', 'Firebase Auth', 'Firestore', 'Bootstrap'],
     repo: 'https://github.com/Quim21/repia',
+    demo: 'https://quim21.github.io/repia/',
   },
 ];
