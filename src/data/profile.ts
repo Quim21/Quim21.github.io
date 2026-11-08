@@ -6,7 +6,7 @@ export const profile = {
     'Estudiante de Desarrollo de Aplicaciones Web (DAW). Construyo juegos y aplicaciones de principio a fin: desde la lógica en el servidor y el guardado de datos hasta la interfaz que ve el jugador.',
   github: 'https://github.com/Quim21',
   linkedin: '', // ej. 'https://www.linkedin.com/in/tu-usuario'
-  email: '', // ej. 'tu@email.com'
+  email: 'quim.perez21@gmail.com', // ej. 'tu@email.com'
 };
 
 export const stack = [
