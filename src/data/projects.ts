@@ -30,6 +30,7 @@ export interface Project {
   stack: string[];
   repo: string;
   demo?: string;
+  demoLabel?: string;
 }
 
 export const featured: FeaturedProject[] = [
@@ -120,12 +121,14 @@ export const featured: FeaturedProject[] = [
 
 export const more: Project[] = [
   {
-    title: 'Ajedrez en terminal',
+    title: 'Ajedrez',
     kind: 'Juego · Python',
     summary:
-      'Ajedrez para dos jugadores con tablero Unicode, validación de movimientos de cada pieza y registro de piezas capturadas. Incluye tests con pytest.',
-    stack: ['Python', 'pytest'],
+      'Ajedrez para dos jugadores con validación de movimientos de cada pieza, registro de piezas capturadas y tests con pytest. Se juega aquí en un tablero visual que usa las reglas del código Python original.',
+    stack: ['Python', 'pytest', 'Pyodide'],
     repo: 'https://github.com/Quim21/Programacio/tree/main/Projecte%20Escacs',
+    demo: '/ajedrez/',
+    demoLabel: 'Jugar',
   },
   {
     title: 'RePia',

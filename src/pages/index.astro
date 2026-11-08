@@ -116,8 +116,13 @@ const year = new Date().getFullYear();
                   {p.stack.map((s) => <li>{s}</li>)}
                 </ul>
                 <div class="links">
+                  {p.demo &&
+                    (p.demo.startsWith('/') ? (
+                      <a class="play" href={p.demo}>▶ {p.demoLabel ?? 'Demo'}</a>
+                    ) : (
+                      <a href={p.demo} target="_blank" rel="noopener">{p.demoLabel ?? 'Demo'} ↗</a>
+                    ))}
                   <a href={p.repo} target="_blank" rel="noopener">Código ↗</a>
-                  {p.demo && <a href={p.demo} target="_blank" rel="noopener">Demo ↗</a>}
                 </div>
               </article>
             ))

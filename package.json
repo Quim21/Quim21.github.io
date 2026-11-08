@@ -6,7 +6,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "sync:piaxxii": "node scripts/sync-piaxxii.mjs"
+    "sync:piaxxii": "node scripts/sync-piaxxii.mjs",
+    "sync:ajedrez": "node scripts/sync-ajedrez.mjs"
   },
   "dependencies": {
     "astro": "^7.4.7"

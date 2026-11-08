@@ -1,0 +1,653 @@
+---
+import '../styles/global.css';
+
+const title = 'Ajedrez · Jugar';
+const description =
+  'Ajedrez para dos jugadores en el navegador: las reglas son el código Python original, ejecutado con Pyodide.';
+const pyodideVersion = '314.0.7';
+const pyodideUrl = `https://cdn.jsdelivr.net/pyodide/v${pyodideVersion}/full/`;
+const repo = 'https://github.com/Quim21/Programacio/tree/main/Projecte%20Escacs';
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script is:inline src={`${pyodideUrl}pyodide.js`} defer></script>
+  </head>
+
+  <body>
+    <div class="page wrap">
+      <header class="top">
+        <a href="/#proyectos" class="back">← Portafolio</a>
+        <div class="heading">
+          <h1>Ajedrez</h1>
+          <p>
+            Para dos jugadores en el mismo dispositivo. Las reglas son mi código Python original, ejecutándose en tu
+            navegador con Pyodide.{' '}
+            <a href={repo} target="_blank" rel="noopener">Código ↗</a>
+          </p>
+        </div>
+      </header>
+
+      <div class="game">
+        <div class="board-wrap">
+          <div id="board" class="board" role="grid" aria-label="Tablero de ajedrez" aria-busy="true">
+            <p class="loading">Cargando Python en el navegador…<br />La primera vez descarga unos 12 MB.</p>
+          </div>
+        </div>
+
+        <aside class="panel">
+          <div class="turn" id="turn" aria-live="polite">
+            <span class="swatch" id="swatch"></span>
+            <span id="turn-text">Cargando…</span>
+          </div>
+
+          <div class="console" aria-live="polite">
+            <span class="console-label">Mensaje del programa</span>
+            <p id="message">—</p>
+          </div>
+
+          <div class="captured">
+            <div>
+              <span class="label">Blancas eliminadas</span>
+              <p id="lost-white" class="pieces"></p>
+            </div>
+            <div>
+              <span class="label">Negras eliminadas</span>
+              <p id="lost-black" class="pieces"></p>
+            </div>
+          </div>
+
+          <div class="history">
+            <span class="label">Jugadas</span>
+            <ol id="history"></ol>
+          </div>
+
+          <div class="actions">
+            <button type="button" id="restart" class="btn primary" disabled>↻ Nueva partida</button>
+            <button type="button" id="resign" class="btn" disabled>Abandonar</button>
+          </div>
+        </aside>
+      </div>
+
+      <details class="help">
+        <summary>¿Cómo funciona?</summary>
+        <p>
+          Pulsa una pieza y luego la casilla de destino. Las casillas marcadas no las calcula la web: para cada una se
+          pregunta a la función <code>moviment()</code> del juego original si la jugada es válida, igual que si la
+          escribieras en la consola (por ejemplo <code>E7</code> y después <code>E5</code>). Los mensajes también salen
+          del programa, en catalán. Las coordenadas son las del juego por consola: la fila 1 es la de las negras.
+        </p>
+        <p>
+          Es un ejercicio de clase, así que no tiene jaque, enroque, captura al paso ni coronación. En esta versión web la
+          partida termina cuando se captura un rey.
+        </p>
+      </details>
+    </div>
+
+    <script define:vars={{ pyodideUrl }} is:inline>
+      window.PYODIDE_URL = pyodideUrl;
+    </script>
+
+    <script>
+      type Estat = {
+        tauler: string[][];
+        eliminadesBlanques: string[];
+        eliminadesNegres: string[];
+        torn: 0 | 1;
+        acabada: boolean;
+        missatge: string;
+      };
+      type Puente = Record<
+        'estat' | 'nova_partida' | 'seleccionar' | 'moure' | 'abandonar',
+        (...args: number[]) => string
+      >;
+
+      const COLUMNES = 'ABCDEFGH';
+      const BLANQUES = '♔♕♖♗♘♙';
+      // Pintamos todas las piezas con el glifo relleno y les damos color con CSS: así se ven igual en todos
+      // los sistemas. ︎ evita que el peón se muestre como emoji.
+      const GLIFO: Record<string, string> = {
+        '♔': '♚', '♕': '♛', '♖': '♜', '♗': '♝', '♘': '♞', '♙': '♟',
+        '♚': '♚', '♛': '♛', '♜': '♜', '♝': '♝', '♞': '♞', '♟': '♟',
+      };
+      const NOM: Record<string, string> = {
+        '♔': 'rey', '♚': 'rey', '♕': 'reina', '♛': 'reina', '♖': 'torre', '♜': 'torre',
+        '♗': 'alfil', '♝': 'alfil', '♘': 'caballo', '♞': 'caballo', '♙': 'peón', '♟': 'peón',
+      };
+
+      const board = document.getElementById('board') as HTMLDivElement;
+      const turnText = document.getElementById('turn-text')!;
+      const swatch = document.getElementById('swatch')!;
+      const message = document.getElementById('message')!;
+      const lostWhite = document.getElementById('lost-white')!;
+      const lostBlack = document.getElementById('lost-black')!;
+      const history = document.getElementById('history') as HTMLOListElement;
+      const restart = document.getElementById('restart') as HTMLButtonElement;
+      const resign = document.getElementById('resign') as HTMLButtonElement;
+
+      let py: Puente | null = null;
+      let estat: Estat | null = null;
+      let seleccio: [number, number] | null = null;
+      let desti = new Set<string>();
+      let ultima: [number, number, number, number] | null = null;
+      const caselles: HTMLButtonElement[][] = [];
+
+      const simbol = (peca: string) => peca.slice(1, -1).trim(); // "[♙]" → "♙"
+      const esBlanca = (s: string) => BLANQUES.includes(s);
+      const coord = (f: number, c: number) => `${COLUMNES[c]}${f + 1}`;
+      const clau = (f: number, c: number) => `${f},${c}`;
+
+      function peca(s: string) {
+        const span = document.createElement('span');
+        span.className = `piece ${esBlanca(s) ? 'white' : 'black'}`;
+        span.textContent = GLIFO[s] + '︎';
+        return span;
+      }
+
+      function crearTauler() {
+        board.replaceChildren();
+        for (let f = 0; f < 8; f++) {
+          caselles[f] = [];
+          const fila = document.createElement('div');
+          fila.setAttribute('role', 'row');
+          fila.className = 'row';
+          for (let c = 0; c < 8; c++) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.setAttribute('role', 'gridcell');
+            b.className = `sq ${(f + c) % 2 ? 'dark' : 'light'}`;
+            b.addEventListener('click', () => pulsar(f, c));
+            caselles[f][c] = b;
+            fila.append(b);
+          }
+          board.append(fila);
+        }
+        board.removeAttribute('aria-busy');
+      }
+
+      function pintar() {
+        if (!estat) return;
+        for (let f = 0; f < 8; f++) {
+          for (let c = 0; c < 8; c++) {
+            const b = caselles[f][c];
+            const s = simbol(estat.tauler[f][c]);
+            b.replaceChildren();
+            if (s) b.append(peca(s));
+            if (c === 0) b.append(Object.assign(document.createElement('span'), { className: 'rank', textContent: f + 1 }));
+            if (f === 7) b.append(Object.assign(document.createElement('span'), { className: 'file', textContent: COLUMNES[c] }));
+
+            const k = clau(f, c);
+            b.classList.toggle('selected', !!seleccio && seleccio[0] === f && seleccio[1] === c);
+            b.classList.toggle('target', desti.has(k) && !s);
+            b.classList.toggle('capture', desti.has(k) && !!s);
+            b.classList.toggle(
+              'last',
+              !!ultima && ((ultima[0] === f && ultima[1] === c) || (ultima[2] === f && ultima[3] === c))
+            );
+            b.disabled = estat.acabada;
+            b.setAttribute(
+              'aria-label',
+              `${coord(f, c)}${s ? `, ${NOM[s]} ${esBlanca(s) ? 'blanco' : 'negro'}` : ', vacía'}${desti.has(k) ? ', destino posible' : ''}`
+            );
+          }
+        }
+
+        const blanques = estat.torn === 0;
+        swatch.className = `swatch ${blanques ? 'white' : 'black'}`;
+        turnText.textContent = estat.acabada ? 'Partida terminada' : `Turno de las ${blanques ? 'blancas' : 'negras'}`;
+        lostWhite.replaceChildren(...estat.eliminadesBlanques.map((p) => peca(simbol(p))));
+        lostBlack.replaceChildren(...estat.eliminadesNegres.map((p) => peca(simbol(p))));
+        resign.disabled = estat.acabada;
+        restart.disabled = false;
+      }
+
+      function dir(text: string) {
+        message.textContent = text || '—';
+      }
+
+      function actualitzar() {
+        estat = JSON.parse(py!.estat());
+        pintar();
+      }
+
+      function seleccionar(f: number, c: number) {
+        const r = JSON.parse(py!.seleccionar(f, c)) as { valida: boolean; missatge: string; desti: number[][] };
+        dir(r.missatge);
+        if (r.valida) {
+          seleccio = [f, c];
+          desti = new Set(r.desti.map(([a, b]) => clau(a, b)));
+        } else {
+          seleccio = null;
+          desti.clear();
+        }
+        pintar();
+      }
+
+      function moure(f: number, c: number, f2: number, c2: number) {
+        const r = JSON.parse(py!.moure(f, c, f2, c2)) as { ok: boolean; missatge: string; peca?: string; capturada?: string };
+        dir(r.missatge);
+        if (r.ok) {
+          const li = document.createElement('li');
+          const s = simbol(r.peca!);
+          li.className = esBlanca(s) ? 'w' : 'b';
+          li.append(peca(s), ` ${coord(f, c)} → ${coord(f2, c2)}`);
+          const cap = simbol(r.capturada!);
+          if (cap) li.append(' ×', peca(cap));
+          history.append(li);
+          history.scrollTop = history.scrollHeight;
+          ultima = [f, c, f2, c2];
+          seleccio = null;
+          desti.clear();
+        }
+        actualitzar();
+      }
+
+      function pulsar(f: number, c: number) {
+        if (!py || !estat || estat.acabada) return;
+        const s = simbol(estat.tauler[f][c]);
+        const propia = !!s && esBlanca(s) === (estat.torn === 0);
+
+        if (seleccio && seleccio[0] === f && seleccio[1] === c) {
+          seleccio = null;
+          desti.clear();
+          dir('');
+          pintar();
+        } else if (seleccio && !propia) {
+          // Casilla de destino: si no es válida, el propio juego explica por qué
+          moure(seleccio[0], seleccio[1], f, c);
+        } else {
+          seleccionar(f, c);
+        }
+      }
+
+      async function boot() {
+        try {
+          while (!(window as any).loadPyodide) await new Promise((r) => setTimeout(r, 50));
+          const pyodide = await (window as any).loadPyodide({ indexURL: (window as any).PYODIDE_URL });
+          const base = new URL('/ajedrez/', location.origin);
+          const [joc, pont] = await Promise.all(
+            ['QuimPerez_Escacs.py', 'puente.py'].map((f) => fetch(new URL(f, base)).then((r) => r.text()))
+          );
+          pyodide.FS.mkdirTree('/ajedrez');
+          pyodide.FS.writeFile('/ajedrez/QuimPerez_Escacs.py', joc);
+          pyodide.runPython(pont);
+          const get = (n: string) => pyodide.globals.get(n);
+          py = {
+            estat: get('estat'),
+            nova_partida: get('nova_partida'),
+            seleccionar: get('seleccionar'),
+            moure: get('moure'),
+            abandonar: get('abandonar'),
+          };
+          crearTauler();
+          estat = JSON.parse(py.nova_partida());
+          dir('Comença el joc');
+          pintar();
+        } catch (error) {
+          console.error(error);
+          board.replaceChildren(
+            Object.assign(document.createElement('p'), {
+              className: 'loading',
+              textContent: 'No se ha podido cargar el juego. Prueba a recargar la página o usa un navegador actualizado.',
+            })
+          );
+        }
+      }
+
+      restart.addEventListener('click', () => {
+        if (!py) return;
+        estat = JSON.parse(py.nova_partida());
+        seleccio = null;
+        desti.clear();
+        ultima = null;
+        history.replaceChildren();
+        dir('Comença el joc');
+        pintar();
+      });
+
+      resign.addEventListener('click', () => {
+        if (!py || !estat || estat.acabada) return;
+        seleccio = null;
+        desti.clear();
+        estat = JSON.parse(py.abandonar());
+        dir(estat!.missatge);
+        pintar();
+      });
+
+      boot();
+    </script>
+  </body>
+</html>
+
+<style>
+  .page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 24px 0 40px;
+  }
+  .back {
+    font-size: 14px;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .back:hover {
+    color: var(--accent);
+  }
+  .heading h1 {
+    font-size: clamp(1.8rem, 5vw, 2.4rem);
+    letter-spacing: -0.02em;
+    margin: 6px 0 4px;
+  }
+  .heading p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 15px;
+    max-width: 62ch;
+  }
+  .heading a {
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .game {
+    display: grid;
+    grid-template-columns: minmax(0, 600px) minmax(240px, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* Tablero */
+  .board-wrap {
+    container-type: inline-size;
+    /* que el tablero entero quepa en pantalla también en portátiles con poca altura */
+    width: 100%;
+    max-width: max(300px, calc(100dvh - 200px));
+  }
+  .board {
+    --light: #efe3cf;
+    --dark: #a8825f;
+    aspect-ratio: 1;
+    display: grid;
+    grid-template-rows: repeat(8, 1fr);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .board :global(.row) {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+  }
+  .loading {
+    margin: auto;
+    padding: 24px;
+    text-align: center;
+    color: var(--muted);
+    font: 14px/1.6 var(--mono);
+    grid-row: 1 / -1;
+    align-self: center;
+  }
+  .board :global(.sq) {
+    position: relative;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: none;
+    margin: 0;
+    cursor: pointer;
+    font: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .board :global(.sq.light) {
+    background: var(--light);
+  }
+  .board :global(.sq.dark) {
+    background: var(--dark);
+  }
+  .board :global(.sq:disabled) {
+    cursor: default;
+  }
+  .board :global(.sq:focus-visible) {
+    outline: 3px solid var(--accent);
+    outline-offset: -3px;
+    z-index: 1;
+  }
+  .board :global(.sq.last)::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgb(255 214 64 / 0.38);
+  }
+  .board :global(.sq.selected)::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgb(109 62 232 / 0.45);
+  }
+  .board :global(.sq.target)::after {
+    content: '';
+    position: absolute;
+    width: 30%;
+    height: 30%;
+    border-radius: 50%;
+    background: rgb(40 20 90 / 0.35);
+  }
+  .board :global(.sq.capture)::after {
+    content: '';
+    position: absolute;
+    inset: 6%;
+    border-radius: 50%;
+    border: 0.6cqw solid rgb(40 20 90 / 0.45);
+  }
+  @media (hover: hover) {
+    .board :global(.sq:not(:disabled):hover) {
+      filter: brightness(1.06);
+    }
+  }
+  .board :global(.rank),
+  .board :global(.file) {
+    position: absolute;
+    font: 600 max(9px, 1.8cqw) / 1 var(--mono);
+    color: rgb(60 40 20 / 0.65);
+    pointer-events: none;
+  }
+  .board :global(.rank) {
+    top: 5%;
+    left: 6%;
+  }
+  .board :global(.file) {
+    bottom: 5%;
+    right: 7%;
+  }
+
+  :global(.piece) {
+    position: relative;
+    z-index: 1;
+    font-family: 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'DejaVu Sans', 'Apple Symbols', serif;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+  }
+  .board :global(.piece) {
+    font-size: 9.2cqw;
+  }
+  :global(.piece.white) {
+    color: #fbfaf7;
+    text-shadow:
+      0 0 1px #1b1712,
+      0 0 1px #1b1712,
+      0 0 1px #1b1712,
+      0 2px 3px rgb(0 0 0 / 0.35);
+  }
+  :global(.piece.black) {
+    color: #221d18;
+    text-shadow:
+      0 0 1px rgb(255 255 255 / 0.5),
+      0 2px 3px rgb(0 0 0 / 0.3);
+  }
+
+  /* Fuera del tablero las piezas negras necesitan contorno claro para verse sobre el fondo oscuro */
+  .panel :global(.piece.black) {
+    text-shadow:
+      0 0 1px #d8d4cc,
+      0 0 1px #d8d4cc,
+      0 0 1px #d8d4cc;
+  }
+
+  /* Panel lateral */
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+  }
+  .turn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 17px;
+  }
+  .swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--text);
+    background: transparent;
+  }
+  .swatch.white {
+    background: #fbfaf7;
+  }
+  .swatch.black {
+    background: #221d18;
+  }
+  .console {
+    background: var(--code-bg);
+    color: var(--code-text);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .console-label,
+  .label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .console-label {
+    color: var(--code-dim);
+  }
+  .console p {
+    margin: 4px 0 0;
+    font: 13px/1.5 var(--mono);
+    min-height: 1.5em;
+  }
+  .console p::before {
+    content: '› ';
+    color: #7ee787;
+  }
+  .captured {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .pieces {
+    margin: 4px 0 0;
+    min-height: 28px;
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 22px;
+    line-height: 1.2;
+  }
+  .history ol {
+    margin: 6px 0 0;
+    padding: 0 0 0 28px;
+    max-height: 190px;
+    overflow: auto;
+    font: 13px/1.9 var(--mono);
+    color: var(--text);
+  }
+  .history ol:empty::before {
+    content: 'Todavía no hay jugadas';
+    display: block;
+    margin-left: -28px;
+    color: var(--muted);
+    font-family: var(--font);
+  }
+  .history :global(li .piece) {
+    font-size: 17px;
+  }
+  .actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    font: 600 14px var(--font);
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  .help {
+    font-size: 15px;
+    color: var(--muted);
+    max-width: 75ch;
+  }
+  .help summary {
+    cursor: pointer;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .help code {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: var(--surface-2);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  @media (max-width: 820px) {
+    .game {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .panel {
+      padding: 14px;
+    }
+  }
+</style>

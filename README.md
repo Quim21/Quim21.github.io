@@ -15,6 +15,7 @@ npm run build    # genera la web en dist/
 ## Cómo actualizarlo
 
 - **La nau PiaXXII jugable** (`/piaxxii/`): tras cambiar el juego, ejecuta `npm run sync:piaxxii` para copiar su código a `public/piaxxii/game`
+- **Ajedrez jugable** (`/ajedrez/`): tras cambiar `QuimPerez_Escacs.py`, ejecuta `npm run sync:ajedrez`. El tablero (`src/pages/ajedrez.astro`) llama a las funciones del juego a través de `public/ajedrez/puente.py`
 - **Proyectos:** `src/data/projects.ts` (destacados en `featured`, el resto en `more`)
 - **Datos personales, contacto y stack:** `src/data/profile.ts`
 - **Capturas:** guárdalas en `src/assets/` e impórtalas en `projects.ts`
