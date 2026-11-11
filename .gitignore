@@ -2,3 +2,6 @@ node_modules/
 dist/
 .astro/
 .DS_Store
+
+# Datos de prueba del panel de Gem Rush (solo en desarrollo)
+public/_dev/

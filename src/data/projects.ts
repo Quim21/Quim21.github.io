@@ -19,6 +19,7 @@ export interface FeaturedProject {
   repo?: string; // si no hay repo público, se muestra "Código privado"
   demo?: string;
   demoLabel?: string; // texto del botón de la demo (por defecto "Demo")
+  extra?: { href: string; label: string }[]; // enlaces internos adicionales
   credits?: string;
   visual: Visual;
 }
@@ -43,11 +44,12 @@ export const featured: FeaturedProject[] = [
       'Unas 9.000 líneas de Luau separadas en cliente, servidor y configuración compartida',
       'Más de 20 servicios de servidor: mascotas, comercio, prestigio, rebirth, recompensas diarias y ranking',
       'Guardado persistente en DataStore y validación en el servidor contra exploits',
-      'Game passes, icono y miniaturas de tienda listos para publicar',
+      'Publicado en Roblox con 5 game passes a la venta y un panel de estadísticas propio',
     ],
     stack: ['Luau', 'Roblox', 'Rojo', 'DataStore'],
     demo: 'https://www.roblox.com/games/86556561042617/Gem-Rush-Clicker',
     demoLabel: 'Jugar en Roblox',
+    extra: [{ href: '/gem-rush/', label: 'Estadísticas' }],
     visual: { type: 'image', src: gemRush, alt: 'Miniatura de Gem Rush Clicker: una gema azul con el texto Click gems, Upgrade, Unlock 5 worlds' },
   },
   {
@@ -120,6 +122,16 @@ export const featured: FeaturedProject[] = [
 ];
 
 export const more: Project[] = [
+  {
+    title: 'Panel de estadísticas de Gem Rush',
+    kind: 'Panel web · Datos',
+    summary:
+      'Panel con las visitas, jugadores conectados, favoritos y pases de Gem Rush. Una GitHub Action consulta la API pública de Roblox cada hora y guarda el histórico; las gráficas están hechas en SVG sin librerías.',
+    stack: ['TypeScript', 'Node', 'GitHub Actions', 'API de Roblox', 'SVG'],
+    repo: 'https://github.com/Quim21/Quim21.github.io/blob/main/.github/workflows/estadisticas.yml',
+    demo: '/gem-rush/',
+    demoLabel: 'Ver panel',
+  },
   {
     title: 'Ajedrez',
     kind: 'Juego · Python',

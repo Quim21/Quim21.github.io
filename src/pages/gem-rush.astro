@@ -1,0 +1,986 @@
+---
+import '../styles/global.css';
+import { Image } from 'astro:assets';
+import gemRush from '../assets/gem-rush.png';
+
+const title = 'Gem Rush Clicker · Estadísticas';
+const description =
+  'Panel con las estadísticas públicas de Gem Rush Clicker en Roblox, recogidas cada hora por una GitHub Action.';
+const repo = 'https://github.com/Quim21/Quim21.github.io';
+// En desarrollo se usan datos de prueba (public/_dev, fuera de git); en la web, el histórico real de la rama `datos`
+const datosUrl = import.meta.env.DEV
+  ? '/_dev/gem-rush.json'
+  : 'https://raw.githubusercontent.com/Quim21/Quim21.github.io/datos/gem-rush.json';
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body data-datos={datosUrl}>
+    <div class="page wrap">
+      <a href="/#proyectos" class="back">← Portafolio</a>
+
+      <header class="hero">
+        <Image src={gemRush} alt="" width={88} height={88} class="icon" />
+        <div>
+          <p class="kind">Panel de estadísticas · Roblox</p>
+          <h1>Gem Rush Clicker</h1>
+          <p class="lead">
+            Datos públicos de mi juego en Roblox, recogidos cada hora de forma automática.
+          </p>
+          <div class="cta">
+            <a class="btn primary" href="https://www.roblox.com/games/86556561042617/Gem-Rush-Clicker" target="_blank" rel="noopener"
+              >▶ Jugar en Roblox ↗</a
+            >
+            <a class="btn" href="#como-funciona">Cómo funciona</a>
+          </div>
+        </div>
+      </header>
+
+      <div class="filters">
+        <div class="range" role="radiogroup" aria-label="Periodo">
+          <button type="button" role="radio" data-range="24h" aria-checked="false">24 h</button>
+          <button type="button" role="radio" data-range="7d" aria-checked="true">7 días</button>
+          <button type="button" role="radio" data-range="30d" aria-checked="false">30 días</button>
+          <button type="button" role="radio" data-range="all" aria-checked="false">Todo</button>
+        </div>
+        <p class="updated" id="updated">Cargando datos…</p>
+      </div>
+
+      <section class="tiles" aria-label="Resumen">
+        <div class="tile">
+          <span class="tile-label">Jugando ahora</span>
+          <span class="tile-value" id="t-playing">—</span>
+          <span class="tile-sub" id="t-playing-sub"></span>
+        </div>
+        <div class="tile">
+          <span class="tile-label">Visitas totales</span>
+          <span class="tile-value" id="t-visits">—</span>
+          <span class="tile-sub" id="t-visits-sub"></span>
+        </div>
+        <div class="tile">
+          <span class="tile-label">Favoritos</span>
+          <span class="tile-value" id="t-favs">—</span>
+          <span class="tile-sub" id="t-favs-sub"></span>
+        </div>
+        <div class="tile">
+          <span class="tile-label">Valoración</span>
+          <span class="tile-value" id="t-rating">—</span>
+          <span class="tile-sub" id="t-rating-sub"></span>
+        </div>
+      </section>
+
+      <section class="charts">
+        <figure class="card">
+          <figcaption>
+            <h2>Jugadores conectados</h2>
+            <p>Jugadores dentro del juego en cada muestra horaria.</p>
+          </figcaption>
+          <div class="chart" id="c-players"></div>
+        </figure>
+        <figure class="card">
+          <figcaption>
+            <h2>Visitas nuevas</h2>
+            <p id="c-visits-sub">Visitas recibidas en cada periodo.</p>
+          </figcaption>
+          <div class="chart" id="c-visits"></div>
+        </figure>
+      </section>
+
+      <details class="card table-card">
+        <summary>Ver los datos en una tabla</summary>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Fecha</th><th scope="col">Jugando</th><th scope="col">Visitas</th><th scope="col">Favoritos</th></tr>
+            </thead>
+            <tbody id="table"></tbody>
+          </table>
+        </div>
+        <p class="table-note" id="table-note"></p>
+      </details>
+
+      <section class="info">
+        <div class="card">
+          <h2>Pases del juego</h2>
+          <ul class="passes" id="passes"></ul>
+        </div>
+        <div class="card">
+          <h2>Ficha</h2>
+          <dl class="facts">
+            <div><dt>Publicado</dt><dd id="f-created">—</dd></div>
+            <div><dt>Última actualización</dt><dd id="f-updated">—</dd></div>
+            <div><dt>Jugadores por servidor</dt><dd id="f-max">—</dd></div>
+            <div><dt>Muestras guardadas</dt><dd id="f-samples">—</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section id="como-funciona" class="how">
+        <h2>Cómo funciona</h2>
+        <p>
+          Roblox no deja consultar sus APIs desde el navegador, así que el panel se alimenta de un histórico que se
+          genera solo, sin servidor y sin coste:
+        </p>
+        <ol class="pipeline">
+          <li><strong>API pública de Roblox</strong><span>visitas, jugadores, favoritos, votos y pases</span></li>
+          <li><strong>GitHub Action cada hora</strong><span>un script de Node añade una muestra al histórico</span></li>
+          <li><strong>Rama <code>datos</code></strong><span>un JSON que se reescribe en un único commit</span></li>
+          <li><strong>Esta página</strong><span>lee el JSON y dibuja las gráficas en SVG, sin librerías</span></li>
+        </ol>
+        <p class="how-links">
+          <a href={`${repo}/blob/main/.github/workflows/estadisticas.yml`} target="_blank" rel="noopener">Workflow ↗</a>
+          <a href={`${repo}/blob/main/scripts/estadisticas-roblox.mjs`} target="_blank" rel="noopener">Script ↗</a>
+          <a href={`${repo}/blob/main/src/pages/gem-rush.astro`} target="_blank" rel="noopener">Página ↗</a>
+        </p>
+      </section>
+    </div>
+
+    <script>
+      type Muestra = [number, number, number, number, number, number]; // t, jugando, visitas, favoritos, +, -
+      type Datos = {
+        actualizado: string;
+        muestras: Muestra[];
+        juego: {
+          nombre: string;
+          url: string;
+          creado: string;
+          actualizado: string;
+          maxJugadores: number;
+          pases: { nombre: string; precio: number; icono: string | null }[];
+        };
+      };
+      type Rango = '24h' | '7d' | '30d' | 'all';
+      type Punto = { t: number; v: number; etiqueta: string };
+
+      const HORA = 3600;
+      const DIA = 24 * HORA;
+      const DURACION: Record<Rango, number> = { '24h': DIA, '7d': 7 * DIA, '30d': 30 * DIA, all: Infinity };
+      const TEXTO_RANGO: Record<Rango, string> = {
+        '24h': 'en las últimas 24 h',
+        '7d': 'en 7 días',
+        '30d': 'en 30 días',
+        all: 'desde el inicio',
+      };
+
+      const $ = (id: string) => document.getElementById(id)!;
+      const num = new Intl.NumberFormat('es-ES');
+      const compacto = new Intl.NumberFormat('es-ES', { notation: 'compact', maximumFractionDigits: 1 });
+      const fmtFecha = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+      const fmtDia = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' });
+      const fmtHora = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' });
+      const fmtDiaHora = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      const relativo = new Intl.RelativeTimeFormat('es', { numeric: 'auto' });
+
+      let datos: Datos | null = null;
+      let rango: Rango = '7d';
+      try {
+        const guardado = localStorage.getItem('gem-rush-rango') as Rango | null;
+        if (guardado && guardado in DURACION) rango = guardado;
+      } catch {}
+
+      function haceTiempo(t: number) {
+        const s = Math.round(t - Date.now() / 1000);
+        if (Math.abs(s) < 60) return 'ahora mismo';
+        if (Math.abs(s) < HORA) return relativo.format(Math.round(s / 60), 'minute');
+        if (Math.abs(s) < DIA) return relativo.format(Math.round(s / HORA), 'hour');
+        return relativo.format(Math.round(s / DIA), 'day');
+      }
+
+      function conSigno(n: number) {
+        return n > 0 ? `+${num.format(n)}` : num.format(n);
+      }
+
+      // ---------- Gráficas en SVG ----------
+      const SVG = 'http://www.w3.org/2000/svg';
+      function el<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string | number> = {}) {
+        const e = document.createElementNS(SVG, tag);
+        for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
+        return e;
+      }
+
+      // Escala del eje Y con números redondos y enteros (al menos 0–4)
+      function escalaY(max: number) {
+        const v = Math.max(max, 4);
+        const bruto = v / 4;
+        const p = 10 ** Math.floor(Math.log10(bruto));
+        const m = bruto / p;
+        const paso = Math.max(1, (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p);
+        const tope = Math.ceil(v / paso) * paso;
+        const ticks = [];
+        for (let x = 0; x <= tope; x += paso) ticks.push(x);
+        return { tope, ticks };
+      }
+
+      // Marcas del eje X alineadas con horas o días locales
+      function ticksX(t0: number, t1: number) {
+        const span = t1 - t0;
+        const pasos = [HORA, 3 * HORA, 6 * HORA, 12 * HORA, DIA, 2 * DIA, 7 * DIA, 14 * DIA, 30 * DIA];
+        const paso = pasos.find((p) => span / p <= 6) ?? 60 * DIA;
+        const d = new Date(t0 * 1000);
+        if (paso < DIA) {
+          d.setMinutes(0, 0, 0);
+          while (d.getTime() / 1000 < t0 || d.getHours() % (paso / HORA)) d.setHours(d.getHours() + 1);
+        } else {
+          d.setHours(0, 0, 0, 0);
+          if (d.getTime() / 1000 < t0) d.setDate(d.getDate() + 1);
+        }
+        const ticks: { t: number; texto: string }[] = [];
+        while (d.getTime() / 1000 <= t1) {
+          ticks.push({ t: d.getTime() / 1000, texto: paso < DIA ? fmtHora.format(d) : fmtDia.format(d) });
+          if (paso < DIA) d.setHours(d.getHours() + paso / HORA);
+          else d.setDate(d.getDate() + paso / DIA);
+        }
+        return ticks;
+      }
+
+      function vacio(contenedor: HTMLElement, texto: string) {
+        const p = document.createElement('p');
+        p.className = 'empty';
+        p.textContent = texto;
+        contenedor.replaceChildren(p);
+      }
+
+      function grafica(contenedor: HTMLElement, tipo: 'linea' | 'barras', puntos: Punto[], unidad: string, bucket = 0) {
+        if (puntos.length < (tipo === 'linea' ? 2 : 1)) {
+          vacio(contenedor, 'Todavía no hay suficientes datos en este periodo. El histórico se va llenando cada hora.');
+          return;
+        }
+        const W = Math.max(280, contenedor.clientWidth);
+        const H = 220;
+        const m = { top: 12, right: 12, bottom: 26, left: 40 };
+        const iw = W - m.left - m.right;
+        const ih = H - m.top - m.bottom;
+
+        const { tope, ticks } = escalaY(Math.max(...puntos.map((p) => p.v)));
+        const y = (v: number) => m.top + ih - (v / tope) * ih;
+
+        // Eje X: tiempo continuo. Las barras ocupan su periodo [t, t + bucket)
+        const t0 = puntos[0].t;
+        const t1 = puntos[puntos.length - 1].t + (tipo === 'barras' ? bucket : 0);
+        const x = (t: number) => m.left + (t1 === t0 ? iw / 2 : ((t - t0) / (t1 - t0)) * iw);
+
+        const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', tabindex: 0 });
+        svg.setAttribute('aria-label', `${contenedor.closest('figure')?.querySelector('h2')?.textContent}. Usa las flechas para recorrer los valores.`);
+
+        const grid = el('g', { class: 'grid' });
+        for (const v of ticks) {
+          grid.append(el('line', { x1: m.left, x2: W - m.right, y1: y(v), y2: y(v) }));
+          const txt = el('text', { x: m.left - 8, y: y(v), 'text-anchor': 'end', 'dominant-baseline': 'middle' });
+          txt.textContent = compacto.format(v);
+          grid.append(txt);
+        }
+        for (const tk of ticksX(t0, t1)) {
+          const txt = el('text', { x: x(tk.t), y: H - 6, 'text-anchor': 'middle' });
+          txt.textContent = tk.texto;
+          grid.append(txt);
+        }
+        svg.append(grid);
+
+        const marcas = el('g');
+        let barras: SVGPathElement[] = [];
+        if (tipo === 'linea') {
+          const d = puntos.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join('');
+          marcas.append(el('path', { d: `${d}L${x(t1)},${y(0)}L${x(t0)},${y(0)}Z`, class: 'area' }));
+          marcas.append(el('path', { d, class: 'line' }));
+          const ult = puntos[puntos.length - 1];
+          marcas.append(el('circle', { cx: x(ult.t), cy: y(ult.v), r: 4, class: 'dot' }));
+        } else {
+          const ancho = Math.max(2, Math.min(24, (x(t0 + bucket) - x(t0)) * 0.7));
+          barras = puntos.map((p) => {
+            const cx = x(p.t + bucket / 2);
+            const top = y(p.v);
+            const base = y(0);
+            const r = Math.min(4, ancho / 2, base - top);
+            const x0 = cx - ancho / 2;
+            const d =
+              p.v === 0
+                ? ''
+                : `M${x0},${base}V${top + r}Q${x0},${top} ${x0 + r},${top}H${x0 + ancho - r}Q${x0 + ancho},${top} ${x0 + ancho},${top + r}V${base}Z`;
+            const bar = el('path', { d, class: 'bar' });
+            marcas.append(bar);
+            return bar;
+          });
+        }
+        svg.append(marcas);
+
+        // Capa de interacción: línea vertical + punto (línea) o barra resaltada, y un tooltip
+        const cursor = el('line', { y1: m.top, y2: m.top + ih, class: 'crosshair', visibility: 'hidden' });
+        const punto = el('circle', { r: 4, class: 'dot', visibility: 'hidden' });
+        svg.append(cursor, punto);
+        const tip = document.createElement('div');
+        tip.className = 'tip';
+        tip.hidden = true;
+
+        const centro = (p: Punto) => (tipo === 'linea' ? x(p.t) : x(p.t + bucket / 2));
+        let activo = -1;
+        function mostrar(i: number) {
+          activo = i;
+          const p = puntos[i];
+          const cx = centro(p);
+          if (tipo === 'linea') {
+            cursor.setAttribute('x1', String(cx));
+            cursor.setAttribute('x2', String(cx));
+            cursor.setAttribute('visibility', 'visible');
+            punto.setAttribute('cx', String(cx));
+            punto.setAttribute('cy', String(y(p.v)));
+            punto.setAttribute('visibility', 'visible');
+          } else {
+            barras.forEach((b, j) => b.classList.toggle('active', j === i));
+          }
+          const valor = document.createElement('strong');
+          valor.textContent = `${num.format(p.v)} ${unidad}`;
+          const fecha = document.createElement('span');
+          fecha.textContent = p.etiqueta;
+          tip.replaceChildren(valor, fecha);
+          tip.hidden = false;
+          const escala = contenedor.clientWidth / W;
+          const left = Math.min(Math.max(cx * escala, 70), contenedor.clientWidth - 70);
+          tip.style.left = `${left}px`;
+          tip.style.top = `${Math.max(0, y(p.v) * escala - 8)}px`;
+        }
+        function ocultar() {
+          activo = -1;
+          cursor.setAttribute('visibility', 'hidden');
+          punto.setAttribute('visibility', 'hidden');
+          barras.forEach((b) => b.classList.remove('active'));
+          tip.hidden = true;
+        }
+        function cercano(px: number) {
+          let mejor = 0;
+          puntos.forEach((p, i) => {
+            if (Math.abs(centro(p) - px) < Math.abs(centro(puntos[mejor]) - px)) mejor = i;
+          });
+          return mejor;
+        }
+        svg.addEventListener('pointermove', (e) => {
+          const r = svg.getBoundingClientRect();
+          mostrar(cercano(((e.clientX - r.left) / r.width) * W));
+        });
+        svg.addEventListener('pointerleave', ocultar);
+        svg.addEventListener('focus', () => mostrar(puntos.length - 1));
+        svg.addEventListener('blur', ocultar);
+        svg.addEventListener('keydown', (e) => {
+          if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            const i = activo < 0 ? puntos.length - 1 : activo + (e.key === 'ArrowRight' ? 1 : -1);
+            mostrar(Math.min(puntos.length - 1, Math.max(0, i)));
+          }
+        });
+
+        contenedor.replaceChildren(svg, tip);
+      }
+
+      // ---------- Datos → pantalla ----------
+      function pintar() {
+        if (!datos) return;
+        const todas = datos.muestras;
+        const ultima = todas[todas.length - 1];
+        const ahora = ultima[0];
+        const inicio = ahora - DURACION[rango];
+        const enRango = todas.filter((s) => s[0] >= inicio);
+        // Muestra de referencia para calcular lo ganado en el periodo
+        const base = enRango[0] ?? ultima;
+
+        document.querySelectorAll<HTMLButtonElement>('[data-range]').forEach((b) =>
+          b.setAttribute('aria-checked', String(b.dataset.range === rango))
+        );
+        $('updated').textContent = `Actualizado ${haceTiempo(ahora)} · ${num.format(enRango.length)} ${enRango.length === 1 ? 'muestra' : 'muestras'} en el periodo`;
+
+        $('t-playing').textContent = num.format(ultima[1]);
+        $('t-playing-sub').textContent = `máximo ${TEXTO_RANGO[rango]}: ${num.format(Math.max(...enRango.map((s) => s[1])))}`;
+        $('t-visits').textContent = num.format(ultima[2]);
+        $('t-visits-sub').textContent = `${conSigno(ultima[2] - base[2])} ${TEXTO_RANGO[rango]}`;
+        $('t-favs').textContent = num.format(ultima[3]);
+        $('t-favs-sub').textContent = `${conSigno(ultima[3] - base[3])} ${TEXTO_RANGO[rango]}`;
+        const votos = ultima[4] + ultima[5];
+        $('t-rating').textContent = votos ? `${Math.round((ultima[4] / votos) * 100)} %` : '—';
+        $('t-rating-sub').textContent = votos
+          ? `de me gusta · ${num.format(votos)} ${votos === 1 ? 'voto' : 'votos'}`
+          : 'todavía sin votos';
+
+        // Jugadores conectados: una muestra por hora
+        grafica(
+          $('c-players'),
+          'linea',
+          enRango.map((s) => ({ t: s[0], v: s[1], etiqueta: fmtDiaHora.format(s[0] * 1000) })),
+          'jugando'
+        );
+
+        // Visitas nuevas: diferencia entre muestras, agrupada por hora o por día
+        const porHoras = rango === '24h' || (enRango.length && ahora - enRango[0][0] <= 2 * DIA);
+        const bucket = porHoras ? HORA : DIA;
+        $('c-visits-sub').textContent = porHoras ? 'Visitas recibidas en cada hora.' : 'Visitas recibidas cada día.';
+        const inicioBucket = (t: number) => {
+          const d = new Date(t * 1000);
+          if (porHoras) d.setMinutes(0, 0, 0);
+          else d.setHours(0, 0, 0, 0);
+          return d.getTime() / 1000;
+        };
+        const grupos = new Map<number, number>();
+        const idx = todas.indexOf(enRango[0]);
+        for (let i = Math.max(1, idx); i < todas.length; i++) {
+          const k = inicioBucket(todas[i][0]);
+          grupos.set(k, (grupos.get(k) ?? 0) + Math.max(0, todas[i][2] - todas[i - 1][2]));
+        }
+        const puntosVisitas: Punto[] = [];
+        if (grupos.size) {
+          const desde = Math.min(...grupos.keys());
+          const d = new Date(desde * 1000);
+          while (d.getTime() / 1000 <= ahora) {
+            const t = d.getTime() / 1000;
+            const fin = new Date(d);
+            if (porHoras) fin.setHours(fin.getHours() + 1);
+            else fin.setDate(fin.getDate() + 1);
+            puntosVisitas.push({
+              t,
+              v: grupos.get(t) ?? 0,
+              etiqueta: porHoras ? `${fmtDia.format(d)}, ${fmtHora.format(d)}–${fmtHora.format(fin)}` : fmtFecha.format(d),
+            });
+            if (porHoras) d.setHours(d.getHours() + 1);
+            else d.setDate(d.getDate() + 1);
+          }
+        }
+        grafica($('c-visits'), 'barras', puntosVisitas, puntosVisitas.length === 1 && puntosVisitas[0].v === 1 ? 'visita' : 'visitas', bucket);
+
+        // Tabla: las muestras del periodo, de la más reciente a la más antigua
+        const MAX_FILAS = 200;
+        const filas = enRango.slice(-MAX_FILAS).reverse().map((s) => {
+          const tr = document.createElement('tr');
+          for (const valor of [fmtDiaHora.format(s[0] * 1000), num.format(s[1]), num.format(s[2]), num.format(s[3])]) {
+            const td = document.createElement('td');
+            td.textContent = valor;
+            tr.append(td);
+          }
+          return tr;
+        });
+        $('table').replaceChildren(...filas);
+        $('table-note').textContent =
+          enRango.length > MAX_FILAS ? `Se muestran las ${MAX_FILAS} muestras más recientes de ${enRango.length}.` : '';
+      }
+
+      function pintarFicha(d: Datos) {
+        $('f-created').textContent = fmtFecha.format(new Date(d.juego.creado));
+        $('f-updated').textContent = fmtFecha.format(new Date(d.juego.actualizado));
+        $('f-max').textContent = num.format(d.juego.maxJugadores);
+        $('f-samples').textContent = `${num.format(d.muestras.length)} desde el ${fmtFecha.format(d.muestras[0][0] * 1000)}`;
+        $('passes').replaceChildren(
+          ...d.juego.pases.map((p) => {
+            const li = document.createElement('li');
+            if (p.icono) {
+              const img = document.createElement('img');
+              img.src = p.icono;
+              img.alt = '';
+              img.width = img.height = 48;
+              img.loading = 'lazy';
+              li.append(img);
+            }
+            const nombre = document.createElement('span');
+            nombre.className = 'pass-name';
+            nombre.textContent = p.nombre;
+            const precio = document.createElement('span');
+            precio.className = 'pass-price';
+            precio.textContent = `${num.format(p.precio)} Robux`;
+            li.append(nombre, precio);
+            return li;
+          })
+        );
+      }
+
+      document.querySelectorAll<HTMLButtonElement>('[data-range]').forEach((b) =>
+        b.addEventListener('click', () => {
+          rango = b.dataset.range as Rango;
+          try {
+            localStorage.setItem('gem-rush-rango', rango);
+          } catch {}
+          pintar();
+        })
+      );
+
+      let redimension = 0;
+      new ResizeObserver(() => {
+        cancelAnimationFrame(redimension);
+        redimension = requestAnimationFrame(pintar);
+      }).observe(document.querySelector('.charts')!);
+
+      fetch(document.body.dataset.datos!)
+        .then((r) => {
+          if (!r.ok) throw new Error(String(r.status));
+          return r.json();
+        })
+        .then((d: Datos) => {
+          if (!d.muestras?.length) throw new Error('sin muestras');
+          datos = d;
+          pintarFicha(d);
+          pintar();
+        })
+        .catch((error) => {
+          console.error(error);
+          $('updated').textContent = 'No se han podido cargar los datos. Prueba a recargar la página en un rato.';
+          for (const id of ['c-players', 'c-visits']) vacio($(id), 'Sin datos.');
+        });
+    </script>
+  </body>
+</html>
+
+<style>
+  .page {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding: 24px 0 48px;
+  }
+  .back {
+    font-size: 14px;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .back:hover {
+    color: var(--accent);
+  }
+
+  .hero {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .hero :global(.icon) {
+    width: 88px;
+    height: 88px;
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    flex: none;
+  }
+  .kind {
+    margin: 0;
+    font: 500 13px var(--mono);
+    color: var(--accent);
+  }
+  h1 {
+    font-size: clamp(1.8rem, 5vw, 2.4rem);
+    letter-spacing: -0.02em;
+    margin: 2px 0 4px;
+    line-height: 1.15;
+  }
+  .lead {
+    margin: 0;
+    color: var(--muted);
+  }
+  .cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .btn {
+    font: 600 14px var(--font);
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    text-decoration: none;
+  }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+  }
+  .range {
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .range button {
+    font: 600 13px var(--font);
+    color: var(--muted);
+    background: transparent;
+    border: none;
+    border-radius: 7px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .range button[aria-checked='true'] {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+  }
+  .updated {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .tile,
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .tile {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 16px 18px;
+  }
+  .tile-label {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .tile-value {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .tile-sub {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .charts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+  figure.card {
+    margin: 0;
+    padding: 18px 18px 12px;
+    min-width: 0;
+  }
+  figcaption h2,
+  .card h2 {
+    font-size: 16px;
+    margin: 0;
+  }
+  figcaption p {
+    margin: 2px 0 10px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .chart {
+    --chart: #6d3ee8;
+    position: relative;
+    min-height: 220px;
+  }
+  @media (prefers-color-scheme: dark) {
+    .chart {
+      --chart: #9470f5;
+    }
+  }
+  .chart :global(svg) {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    outline: none;
+    touch-action: pan-y;
+  }
+  .chart :global(svg:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+  .chart :global(.grid line) {
+    stroke: var(--border);
+    stroke-width: 1;
+  }
+  .chart :global(.grid text) {
+    fill: var(--muted);
+    font: 11px var(--font);
+    font-variant-numeric: tabular-nums;
+  }
+  .chart :global(.line) {
+    fill: none;
+    stroke: var(--chart);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  .chart :global(.area) {
+    fill: var(--chart);
+    opacity: 0.1;
+  }
+  .chart :global(.dot) {
+    fill: var(--chart);
+    stroke: var(--surface);
+    stroke-width: 2;
+  }
+  .chart :global(.bar) {
+    fill: var(--chart);
+  }
+  .chart :global(.bar.active) {
+    opacity: 0.75;
+  }
+  .chart :global(.crosshair) {
+    stroke: var(--muted);
+    stroke-width: 1;
+  }
+  .chart :global(.tip) {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 10px;
+    background: var(--text);
+    color: var(--bg);
+    border-radius: 8px;
+    font-size: 12px;
+    white-space: nowrap;
+    box-shadow: var(--shadow);
+  }
+  .chart :global(.tip[hidden]) {
+    display: none;
+  }
+  .chart :global(.tip strong) {
+    font-size: 14px;
+  }
+  .chart :global(.empty) {
+    margin: 0;
+    min-height: 220px;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    padding: 0 24px;
+    color: var(--muted);
+    font-size: 14px;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+  }
+
+  .table-card {
+    padding: 14px 18px;
+  }
+  .table-card summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .table-wrap {
+    max-height: 340px;
+    overflow: auto;
+    margin-top: 12px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  th,
+  td {
+    text-align: right;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  th:first-child,
+  td:first-child {
+    text-align: left;
+  }
+  th {
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .table-note {
+    margin: 8px 0 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .table-note:empty {
+    display: none;
+  }
+
+  .info {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 14px;
+  }
+  .info .card {
+    padding: 18px;
+  }
+  .passes {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+  }
+  .passes :global(li) {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 12px;
+    align-items: center;
+    padding: 8px;
+    border-radius: 10px;
+    background: var(--surface-2);
+  }
+  .passes :global(img) {
+    grid-row: span 2;
+    border-radius: 10px;
+  }
+  .passes :global(.pass-name) {
+    font-weight: 600;
+    font-size: 14px;
+    align-self: end;
+  }
+  .passes :global(.pass-price) {
+    font-size: 13px;
+    color: var(--muted);
+    align-self: start;
+  }
+  .facts {
+    margin: 12px 0 0;
+    display: grid;
+    gap: 10px;
+  }
+  .facts div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+    font-size: 14px;
+  }
+  .facts dt {
+    color: var(--muted);
+  }
+  .facts dd {
+    margin: 0;
+    font-weight: 600;
+    text-align: right;
+  }
+
+  .how h2 {
+    font-size: 20px;
+    margin: 8px 0 6px;
+  }
+  .how > p {
+    margin: 0;
+    color: var(--muted);
+    max-width: 70ch;
+  }
+  .pipeline {
+    list-style: none;
+    counter-reset: paso;
+    margin: 16px 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 28px;
+  }
+  .pipeline li {
+    counter-increment: paso;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 14px;
+  }
+  .pipeline li::before {
+    content: counter(paso);
+    font: 600 12px var(--mono);
+    color: var(--accent);
+  }
+  .pipeline li:not(:last-child)::after {
+    content: '→';
+    position: absolute;
+    right: -21px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+  }
+  .pipeline span {
+    color: var(--muted);
+  }
+  .pipeline code,
+  .pipeline strong code {
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .how-links {
+    display: flex;
+    gap: 18px;
+  }
+  .how-links a {
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  @media (max-width: 860px) {
+    .tiles {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .charts,
+    .info {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .pipeline {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 22px;
+    }
+    .pipeline li:not(:last-child)::after {
+      content: '↓';
+      right: auto;
+      left: 50%;
+      top: auto;
+      bottom: -20px;
+      transform: translateX(-50%);
+    }
+  }
+  @media (max-width: 480px) {
+    .hero :global(.icon) {
+      width: 64px;
+      height: 64px;
+      border-radius: 14px;
+    }
+    .hero {
+      gap: 14px;
+    }
+    .tile-value {
+      font-size: 24px;
+    }
+  }
+</style>

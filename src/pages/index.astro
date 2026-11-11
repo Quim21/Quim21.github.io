@@ -92,6 +92,7 @@ const year = new Date().getFullYear();
                       ) : (
                         <a class="play" href={p.demo} target="_blank" rel="noopener">▶ {p.demoLabel ?? 'Demo'} ↗</a>
                       ))}
+                    {p.extra?.map((l) => <a href={l.href}>{l.label}</a>)}
                     {p.repo ? (
                       <a href={p.repo} target="_blank" rel="noopener">Código ↗</a>
                     ) : (
